@@ -1,19 +1,10 @@
-import * as Wm from "./../deno_win32-main/api/UI/WindowsAndMessaging.ts";
-import * as Gfx from "./../deno_win32-main/api/Graphics/OpenGL.ts";
-import * as Gdi from "./../deno_win32-main/api/Graphics/Gdi.ts";
+import * as Wm from "../deno_win32-main/api/UI/WindowsAndMessaging.ts";
+import * as gl from "../deno_win32-main/api/Graphics/OpenGL.ts";
+import * as Gdi from "../deno_win32-main/api/Graphics/Gdi.ts";
 
-function display() {
-  Gfx.glClear(Gfx.GL_COLOR_BUFFER_BIT);
-  Gfx.glBegin(Gfx.GL_TRIANGLES);
-  Gfx.glColor3f(1.0, 0.0, 0.0);
-  Gfx.glVertex2i(0, 1);
-  Gfx.glColor3f(0.0, 1.0, 0.0);
-  Gfx.glVertex2i(-1, -1);
-  Gfx.glColor3f(0.0, 0.0, 1.0);
-  Gfx.glVertex2i(1, -1);
-  Gfx.glEnd();
-  Gfx.glFlush();
-}
+import { display, init } from './engine.ts'
+
+
 
 const ps = Gdi.allocPAINTSTRUCT();
 
@@ -34,7 +25,7 @@ const cb = new Deno.UnsafeCallback(
 
       case Wm.WM_SIZE: {
         const lParamInt = Number(Deno.UnsafePointer.value(lParam));
-        Gfx.glViewport(0, 0, lParamInt & 0xffff, lParamInt >> 16);
+        gl.glViewport(0, 0, lParamInt & 0xffff, lParamInt >> 16);
         Wm.PostMessageA(hWnd, Wm.WM_PAINT, null, null);
         return null;
       }
@@ -126,15 +117,15 @@ function createOpenGLWindow(
 
   const hdc = Gdi.GetDC(hWnd);
 
-  const pfd = Gfx.allocPIXELFORMATDESCRIPTOR({
+  const pfd = gl.allocPIXELFORMATDESCRIPTOR({
     nSize: 40,
     nVersion: 1,
-    dwFlags: Gfx.PFD_DRAW_TO_WINDOW | Gfx.PFD_SUPPORT_OPENGL | flags,
+    dwFlags: gl.PFD_DRAW_TO_WINDOW | gl.PFD_SUPPORT_OPENGL | flags,
     iPixelType: type,
     cColorBits: 32,
   });
 
-  const pf = Gfx.ChoosePixelFormat(hdc, pfd);
+  const pf = gl.ChoosePixelFormat(hdc, pfd);
   if (!pf) {
     Wm.MessageBoxA(
       null,
@@ -145,7 +136,7 @@ function createOpenGLWindow(
     return;
   }
 
-  if (!Gfx.SetPixelFormat(hdc, pf, pfd)) {
+  if (!gl.SetPixelFormat(hdc, pf, pfd)) {
     Wm.MessageBoxA(
       null,
       "SetPixelFormat() failed: Cannot set format specified.",
@@ -155,7 +146,7 @@ function createOpenGLWindow(
     return;
   }
 
-  Gfx.DescribePixelFormat(hdc, pf, pfd.byteLength, pfd);
+  gl.DescribePixelFormat(hdc, pf, pfd.byteLength, pfd);
 
   Gdi.ReleaseDC(hWnd, hdc);
 
@@ -170,13 +161,13 @@ const hWnd = createOpenGLWindow(
   0,
   800,
   600,
-  Gfx.PFD_TYPE_RGBA,
+  gl.PFD_TYPE_RGBA,
   0,
 );
 if (!hWnd) {
   Deno.exit(1);
 }
-
+/*
 const button1 = Wm.CreateWindowExA(
   0,
   "Button",
@@ -232,24 +223,26 @@ const staticText2 = Wm.CreateWindowExA(
   null,
   null,
   null,
-);
+);*/
 
 const hDC = Gdi.GetDC(hWnd);
-const hRC = Gfx.wglCreateContext(hDC);
-Gfx.wglMakeCurrent(hDC, hRC);
+const hRC = gl.wglCreateContext(hDC);
+gl.wglMakeCurrent(hDC, hRC);
 
 Wm.ShowWindow(hWnd, 1);
 
 addEventListener("unload", () => {
-  Gfx.wglMakeCurrent(null, null);
+  gl.wglMakeCurrent(null, null);
   Gdi.ReleaseDC(hWnd, hDC);
-  Gfx.wglDeleteContext(hRC);
+  gl.wglDeleteContext(hRC);
   Wm.DestroyWindow(hWnd);
 });
 
+init()
+
 while (true) {
   display();
-  Gfx.SwapBuffers(hDC);
+  gl.SwapBuffers(hDC);
 
   while (Wm.PeekMessageA(msg, null, 0, 0, Wm.PM_REMOVE)) {
     Wm.TranslateMessage(msg);
