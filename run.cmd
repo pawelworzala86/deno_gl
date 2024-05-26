@@ -1,0 +1,1 @@
+deno run --allow-ffi --unstable-ffi .\hello_gl.ts
