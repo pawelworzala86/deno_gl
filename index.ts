@@ -1,5 +1,5 @@
 import * as Wm from "../deno_win32-main/api/UI/WindowsAndMessaging.ts";
-import * as gl from "../deno_win32-main/api/Graphics/OpenGL.ts";
+import * as gfx from "../deno_win32-main/api/Graphics/Opengl.ts";
 import * as Gdi from "../deno_win32-main/api/Graphics/Gdi.ts";
 
 import { display, init } from './engine.ts'
@@ -25,7 +25,7 @@ const cb = new Deno.UnsafeCallback(
 
       case Wm.WM_SIZE: {
         const lParamInt = Number(Deno.UnsafePointer.value(lParam));
-        gl.glViewport(0, 0, lParamInt & 0xffff, lParamInt >> 16);
+        gfx.glViewport(0, 0, lParamInt & 0xffff, lParamInt >> 16);
         Wm.PostMessageA(hWnd, Wm.WM_PAINT, null, null);
         return null;
       }
@@ -117,15 +117,15 @@ function createOpenGLWindow(
 
   const hdc = Gdi.GetDC(hWnd);
 
-  const pfd = gl.allocPIXELFORMATDESCRIPTOR({
+  const pfd = gfx.allocPIXELFORMATDESCRIPTOR({
     nSize: 40,
     nVersion: 1,
-    dwFlags: gl.PFD_DRAW_TO_WINDOW | gl.PFD_SUPPORT_OPENGL | flags,
+    dwFlags: gfx.PFD_DRAW_TO_WINDOW | gfx.PFD_SUPPORT_OPENGL | flags,
     iPixelType: type,
     cColorBits: 32,
   });
 
-  const pf = gl.ChoosePixelFormat(hdc, pfd);
+  const pf = gfx.ChoosePixelFormat(hdc, pfd);
   if (!pf) {
     Wm.MessageBoxA(
       null,
@@ -136,7 +136,7 @@ function createOpenGLWindow(
     return;
   }
 
-  if (!gl.SetPixelFormat(hdc, pf, pfd)) {
+  if (!gfx.SetPixelFormat(hdc, pf, pfd)) {
     Wm.MessageBoxA(
       null,
       "SetPixelFormat() failed: Cannot set format specified.",
@@ -146,7 +146,7 @@ function createOpenGLWindow(
     return;
   }
 
-  gl.DescribePixelFormat(hdc, pf, pfd.byteLength, pfd);
+  gfx.DescribePixelFormat(hdc, pf, pfd.byteLength, pfd);
 
   Gdi.ReleaseDC(hWnd, hdc);
 
@@ -161,7 +161,7 @@ const hWnd = createOpenGLWindow(
   0,
   800,
   600,
-  gl.PFD_TYPE_RGBA,
+  gfx.PFD_TYPE_RGBA,
   0,
 );
 if (!hWnd) {
@@ -226,15 +226,15 @@ const staticText2 = Wm.CreateWindowExA(
 );*/
 
 const hDC = Gdi.GetDC(hWnd);
-const hRC = gl.wglCreateContext(hDC);
-gl.wglMakeCurrent(hDC, hRC);
+const hRC = gfx.wglCreateContext(hDC);
+gfx.wglMakeCurrent(hDC, hRC);
 
 Wm.ShowWindow(hWnd, 1);
 
 addEventListener("unload", () => {
-  gl.wglMakeCurrent(null, null);
+  gfx.wglMakeCurrent(null, null);
   Gdi.ReleaseDC(hWnd, hDC);
-  gl.wglDeleteContext(hRC);
+  gfx.wglDeleteContext(hRC);
   Wm.DestroyWindow(hWnd);
 });
 
@@ -242,7 +242,7 @@ init()
 
 while (true) {
   display();
-  gl.SwapBuffers(hDC);
+  gfx.SwapBuffers(hDC);
 
   while (Wm.PeekMessageA(msg, null, 0, 0, Wm.PM_REMOVE)) {
     Wm.TranslateMessage(msg);
