@@ -1,1 +1,1 @@
-deno run --allow-ffi --unstable-ffi .\index.ts
+deno run -A --allow-ffi --unstable-ffi .\index.ts

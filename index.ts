@@ -1,251 +1,106 @@
-import * as Wm from "../deno_win32-main/api/UI/WindowsAndMessaging.ts";
-import * as gfx from "../deno_win32-main/api/Graphics/Opengl.ts";
-import * as Gdi from "../deno_win32-main/api/Graphics/Gdi.ts";
+import {
+  createWindow,
+  getProcAddress,
+  mainloop,
+} from "https://deno.land/x/dwm@0.3.4/mod.ts";
+import * as gl from "../gluten-main/api/gles23.2.ts";
 
-import { display, init } from './engine.ts'
-
-
-
-const ps = Gdi.allocPAINTSTRUCT();
-
-let clicks1 = 0, clicks2 = 0;
-
-const cb = new Deno.UnsafeCallback(
-  {
-    parameters: ["pointer", "u32", "pointer", "pointer"],
-    result: "pointer",
-  } as const,
-  (hWnd, msg, wParam, lParam) => {
-    switch (msg) {
-      case Wm.WM_PAINT: {
-        Gdi.BeginPaint(hWnd, ps);
-        Gdi.EndPaint(hWnd, ps);
-        return null;
-      }
-
-      case Wm.WM_SIZE: {
-        const lParamInt = Number(Deno.UnsafePointer.value(lParam));
-        gfx.glViewport(0, 0, lParamInt & 0xffff, lParamInt >> 16);
-        Wm.PostMessageA(hWnd, Wm.WM_PAINT, null, null);
-        return null;
-      }
-
-      case Wm.WM_COMMAND: {
-        const wParamInt = Number(Deno.UnsafePointer.value(wParam));
-        if ((wParamInt & 0xffff) === Wm.BN_CLICKED) {
-          if (Deno.UnsafePointer.equals(lParam, button1)) {
-            Wm.SendMessageA(
-              staticText1,
-              Wm.WM_SETTEXT,
-              null,
-              new TextEncoder().encode(`Clicks: ${++clicks1}\0`),
-            );
-          } else if (Deno.UnsafePointer.equals(lParam, button2)) {
-            Wm.SendMessageA(
-              staticText2,
-              Wm.WM_SETTEXT,
-              null,
-              new TextEncoder().encode(`Clicks: ${++clicks2}\0`),
-            );
-          }
-        }
-        return null;
-      }
-
-      case Wm.WM_CLOSE: {
-        Deno.exit(0);
-      }
-    }
-    return Wm.DefWindowProcA(
-      hWnd,
-      msg,
-      wParam,
-      lParam,
-    );
-  },
-);
-
-const wc = Wm.allocWNDCLASSA({
-  style: Wm.CS_OWNDC,
-  lpfnWndProc: cb.pointer,
-  lpszClassName: "OpenGL",
+const window = createWindow({
+  title: 'GL Window',
+  width: 800,
+  height: 600,
+  resizable: true,
+  glVersion: [3, 2],
+  gles: true,
 });
 
-if (!Wm.RegisterClassA(wc)) {
-  Wm.MessageBoxA(
-    null,
-    "RegisterClass() failed: Cannot register window class.",
-    "Error",
-    0,
+gl.load(getProcAddress);
+
+function loadShader(type: number, src: string) {
+  const shader = gl.CreateShader(type);
+  gl.ShaderSource(
+    shader,
+    1,
+    new Uint8Array(
+      new BigUint64Array([
+        BigInt(
+          Deno.UnsafePointer.value(
+            Deno.UnsafePointer.of(new TextEncoder().encode(src)),
+          ),
+        ),
+      ]).buffer,
+    ),
+    new Int32Array([src.length]),
   );
+  gl.CompileShader(shader);
+  const status = new Int32Array(1);
+  gl.GetShaderiv(shader, gl.COMPILE_STATUS, status);
+  if (status[0] === gl.FALSE) {
+    const logLength = new Int32Array(1);
+    gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, logLength);
+    const log = new Uint8Array(logLength[0]);
+    gl.GetShaderInfoLog(shader, logLength[0], logLength, log);
+    console.log(new TextDecoder().decode(log));
+    gl.DeleteShader(shader);
+    return 0;
+  }
+  return shader;
+}
+
+const vShaderSrc = `
+attribute vec4 vPosition;
+void main() {
+  gl_Position = vPosition;
+}
+`;
+
+const fShaderSrc = `
+void main() {
+  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+}
+`;
+
+const vShader = loadShader(gl.VERTEX_SHADER, vShaderSrc);
+const fShader = loadShader(gl.FRAGMENT_SHADER, fShaderSrc);
+
+const program = gl.CreateProgram();
+gl.AttachShader(program, vShader);
+gl.AttachShader(program, fShader);
+
+gl.BindAttribLocation(program, 0, new TextEncoder().encode("vPosition\0"));
+
+gl.LinkProgram(program);
+
+const status = new Int32Array(1);
+gl.GetProgramiv(program, gl.LINK_STATUS, status);
+if (status[0] === gl.FALSE) {
+  const logLength = new Int32Array(1);
+  gl.GetProgramiv(program, gl.INFO_LOG_LENGTH, logLength);
+  const log = new Uint8Array(logLength[0]);
+  gl.GetProgramInfoLog(program, logLength[0], logLength, log);
+  console.log(new TextDecoder().decode(log));
+  gl.DeleteProgram(program);
   Deno.exit(1);
 }
 
-function createOpenGLWindow(
-  title: string,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  type: number,
-  flags: number,
-) {
-  const hWnd = Wm.CreateWindowExA(
-    Wm.WS_EX_OVERLAPPEDWINDOW,
-    "OpenGL",
-    title,
-    Wm.WS_OVERLAPPEDWINDOW | Wm.WS_CLIPSIBLINGS | Wm.WS_CLIPCHILDREN,
-    x,
-    y,
-    width,
-    height,
-    null,
-    null,
-    null,
-    null,
-  );
+gl.ClearColor(0.0, 0.0, 0.0, 1.0);
 
-  if (!hWnd) {
-    Wm.MessageBoxA(
-      null,
-      "CreateWindowEx() failed: Cannot create a window.",
-      "Error",
-      0,
-    );
-    return;
-  }
-
-  const hdc = Gdi.GetDC(hWnd);
-
-  const pfd = gfx.allocPIXELFORMATDESCRIPTOR({
-    nSize: 40,
-    nVersion: 1,
-    dwFlags: gfx.PFD_DRAW_TO_WINDOW | gfx.PFD_SUPPORT_OPENGL | flags,
-    iPixelType: type,
-    cColorBits: 32,
-  });
-
-  const pf = gfx.ChoosePixelFormat(hdc, pfd);
-  if (!pf) {
-    Wm.MessageBoxA(
-      null,
-      "ChoosePixelFormat() failed: Cannot find a suitable pixel format.",
-      "Error",
-      0,
-    );
-    return;
-  }
-
-  if (!gfx.SetPixelFormat(hdc, pf, pfd)) {
-    Wm.MessageBoxA(
-      null,
-      "SetPixelFormat() failed: Cannot set format specified.",
-      "Error",
-      0,
-    );
-    return;
-  }
-
-  gfx.DescribePixelFormat(hdc, pf, pfd.byteLength, pfd);
-
-  Gdi.ReleaseDC(hWnd, hdc);
-
-  return hWnd;
-}
-
-const msg = Wm.allocMSG();
-
-const hWnd = createOpenGLWindow(
-  "Deno Win32 OpenGL",
-  0,
-  0,
-  800,
-  600,
-  gfx.PFD_TYPE_RGBA,
-  0,
-);
-if (!hWnd) {
-  Deno.exit(1);
-}
-/*
-const button1 = Wm.CreateWindowExA(
-  0,
-  "Button",
-  "button1",
-  Wm.WS_CHILD | Wm.WS_VISIBLE,
-  50,
-  50,
-  200,
-  25,
-  hWnd,
-  null,
-  null,
-  null,
-);
-const button2 = Wm.CreateWindowExA(
-  0,
-  "Button",
-  "button2",
-  Wm.WS_CHILD | Wm.WS_VISIBLE,
-  50,
-  100,
-  200,
-  75,
-  hWnd,
-  null,
-  null,
-  null,
-);
-const staticText1 = Wm.CreateWindowExA(
-  0,
-  "Static",
-  "Clicks: 0",
-  Wm.WS_CHILD | Wm.WS_VISIBLE,
-  50,
-  200,
-  200,
-  23,
-  hWnd,
-  null,
-  null,
-  null,
-);
-const staticText2 = Wm.CreateWindowExA(
-  0,
-  "Static",
-  "Clicks: 0",
-  Wm.WS_CHILD | Wm.WS_VISIBLE,
-  50,
-  230,
-  200,
-  23,
-  hWnd,
-  null,
-  null,
-  null,
-);*/
-
-const hDC = Gdi.GetDC(hWnd);
-const hRC = gfx.wglCreateContext(hDC);
-gfx.wglMakeCurrent(hDC, hRC);
-
-Wm.ShowWindow(hWnd, 1);
-
-addEventListener("unload", () => {
-  gfx.wglMakeCurrent(null, null);
-  Gdi.ReleaseDC(hWnd, hDC);
-  gfx.wglDeleteContext(hRC);
-  Wm.DestroyWindow(hWnd);
+addEventListener("resize", (event) => {
+  gl.Viewport(0, 0, event.width, event.height);
 });
 
-init()
-
-while (true) {
-  display();
-  gfx.SwapBuffers(hDC);
-
-  while (Wm.PeekMessageA(msg, null, 0, 0, Wm.PM_REMOVE)) {
-    Wm.TranslateMessage(msg);
-    Wm.DispatchMessageA(msg);
-  }
+function frame() {
+  gl.Clear(gl.COLOR_BUFFER_BIT);
+  gl.UseProgram(program);
+  // deno-fmt-ignore
+  gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 0, new Float32Array([
+    0.0, 0.5, 0.0,  
+    -0.5, -0.5, 0.0,
+    0.5, -0.5, 0.0,
+  ]));
+  gl.EnableVertexAttribArray(0);
+  gl.DrawArrays(gl.TRIANGLES, 0, 3);
+  window.swapBuffers();
 }
+
+await mainloop(frame);
