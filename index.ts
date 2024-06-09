@@ -48,15 +48,48 @@ function loadShader(type: number, src: string) {
 }
 
 const vShaderSrc = `
-attribute vec4 vPosition;
-void main() {
-  gl_Position = vPosition;
+#version 440 core
+
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec2 coord;
+
+mat4 projection = mat4(1.3737387097273113,0.0,0.0,0.0,0.0,1.3737387097273113,0.0,0.0,0.0,0.0,-1.02020202020202,-1.0,0.0,0.0,-2.0202020202020203,0.0);
+mat4 camera = mat4(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,-2.100090086,1.0);
+mat4 model = mat4(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
+
+out vec2 vCoord;
+
+void main(){
+
+    gl_Position = projection*camera*model*vec4(position,1.0);
+
+    vCoord = coord;
+
 }
 `;
 
 const fShaderSrc = `
-void main() {
-  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+#version 440 core
+
+
+
+
+uniform sampler2D diffuseTexture;
+
+
+in vec2 vCoord;
+
+
+
+out vec4 color;
+
+void main()
+{
+
+	vec3 diffuse = vec3(texture(diffuseTexture, vCoord).rgb);
+	
+	color = vec4(vec3(0.7),1.0);
+
 }
 `;
 
@@ -89,17 +122,18 @@ addEventListener("resize", (event) => {
   gl.Viewport(0, 0, event.width, event.height);
 });
 
+var vertices = [1.0,0.9,0.0,1.0,-1.0,0.0,-1.0,-1.0,0.0,1.0,1.0,0.0,-1.0,-1.0,0.0,-1.0,1.0,0.0]
+var coords = [1.0,1.0,1.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0,0.0,1.0]
+
+gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 0, new Float32Array(vertices));
+gl.EnableVertexAttribArray(0);
+
 function frame() {
   gl.Clear(gl.COLOR_BUFFER_BIT);
   gl.UseProgram(program);
   // deno-fmt-ignore
-  gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 0, new Float32Array([
-    0.0, 0.5, 0.0,  
-    -0.5, -0.5, 0.0,
-    0.5, -0.5, 0.0,
-  ]));
-  gl.EnableVertexAttribArray(0);
-  gl.DrawArrays(gl.TRIANGLES, 0, 3);
+  
+  gl.DrawArrays(gl.TRIANGLES, 0, vertices.length);
   window.swapBuffers();
 }
 
