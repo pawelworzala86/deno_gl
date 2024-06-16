@@ -3,7 +3,7 @@ import {
   getProcAddress,
   mainloop,
 } from "https://deno.land/x/dwm@0.3.4/mod.ts";
-import * as gl from "../gluten-main/api/gles23.2.ts";
+import * as gl from "../../gluten-main/api/gles23.2.ts";
 
 const window = createWindow({
   title: 'GL Window',
