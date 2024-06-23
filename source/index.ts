@@ -47,51 +47,22 @@ function loadShader(type: number, src: string) {
   return shader;
 }
 
-const vShaderSrc = `
-#version 440 core
 
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec2 coord;
 
-mat4 projection = mat4(1.3737387097273113,0.0,0.0,0.0,0.0,1.3737387097273113,0.0,0.0,0.0,0.0,-1.02020202020202,-1.0,0.0,0.0,-2.0202020202020203,0.0);
-mat4 camera = mat4(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,-2.100090086,1.0);
-mat4 model = mat4(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
 
-out vec2 vCoord;
 
-void main(){
-
-    gl_Position = projection*camera*model*vec4(position,1.0);
-
-    vCoord = coord;
-
+async function loadFile(path){
+  const decoder = new TextDecoder('utf-8');
+  const text = decoder.decode(await Deno.readFile(path));
+  return text
 }
-`;
-
-const fShaderSrc = `
-#version 440 core
 
 
-
-
-uniform sampler2D diffuseTexture;
-
-
-in vec2 vCoord;
+const vShaderSrc = await loadFile('./shaders/default.vert')
+const fShaderSrc = await loadFile('./shaders/default.frag')
 
 
 
-out vec4 color;
-
-void main()
-{
-
-	vec3 diffuse = vec3(texture(diffuseTexture, vCoord).rgb);
-	
-	color = vec4(vec3(0.7),1.0);
-
-}
-`;
 
 const vShader = loadShader(gl.VERTEX_SHADER, vShaderSrc);
 const fShader = loadShader(gl.FRAGMENT_SHADER, fShaderSrc);
