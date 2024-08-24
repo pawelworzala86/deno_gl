@@ -96,13 +96,17 @@ addEventListener("resize", (event) => {
 var vertices = [1.0,0.9,0.0,1.0,-1.0,0.0,-1.0,-1.0,0.0,1.0,1.0,0.0,-1.0,-1.0,0.0,-1.0,1.0,0.0]
 var coords = [1.0,1.0,1.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0,0.0,1.0]
 
-gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 0, new Float32Array(vertices));
+var array32 = new Float32Array(vertices)
+
+gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 0, array32);
 gl.EnableVertexAttribArray(0);
 
 function frame() {
   gl.Clear(gl.COLOR_BUFFER_BIT);
   gl.UseProgram(program);
   // deno-fmt-ignore
+
+  array32[0] = 0.5
   
   gl.DrawArrays(gl.TRIANGLES, 0, vertices.length);
   window.swapBuffers();
